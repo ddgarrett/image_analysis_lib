@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "image_analysis_lib"
+version = "0.1.0"
+description = "Shared MUSIQ scoring and duplicate-photo detection library for backup_pics and process_images."
+authors = [
+  { name = "Douglas Garrett" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "Pillow>=9.0.0",
+  "numpy>=1.23.0",
+  "tensorflow>=2.11.0",
+  "tensorflow_hub>=0.12.0",
+  "imagededup>=0.3.1",
+  "exifread>=3.0.0",
+]
+
+[project.optional-dependencies]
+cli = [
+  "click>=8.0.0",
+]
+
+[project.scripts]
+image-analysis = "image_analysis_lib.cli:main"
+
+[project.urls]
+Homepage = "https://example.com/image_analysis_lib"
+
