@@ -1,0 +1,46 @@
+---
+description: Put all Python imports at the top of the file
+globs: "**/*.py"
+alwaysApply: false
+---
+
+# Python import convention
+
+- **Place all imports at the beginning of the file**, immediately after the module docstring and `from __future__` if present.
+- Use this order: standard library, then third-party, then local (each group separated by a blank line).
+- **Do not** put imports inside functions, classes, or try/except blocks to "lazy load" or hide missing dependencies. If a dependency is required, importing it at the top will cause the program to fail immediately with a clear `ModuleNotFoundError` when it is missing.
+- Use broad try/except only for runtime errors (e.g. I/O, parsing); do not use it in a way that catches `ImportError` and continues with degraded behavior unless the dependency is explicitly optional and documented as such.
+
+## Example
+
+```python
+# Good: all imports at top
+from __future__ import annotations
+
+import argparse
+import math
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+import exifread
+import numpy as np
+from imagededup.methods import CNN
+```
+
+```python
+# Bad: import inside function
+def foo():
+    import exifread  # No: move to top
+    ...
+```
+
+```python
+# Bad: import hidden in try/except (hides missing package)
+def bar():
+    try:
+        import exifread
+        ...
+    except Exception:
+        return default  # ImportError is swallowed
+```
