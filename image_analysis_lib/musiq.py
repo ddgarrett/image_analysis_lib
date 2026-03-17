@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import io
-from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
@@ -13,9 +12,9 @@ from .config import ImageAnalysisConfig, default_config
 try:
     from PIL import Image
 except ImportError as exc:  # pragma: no cover - import error path
-        raise ImportError(
-            "Pillow is required for MUSIQ scoring. Install with: pip install Pillow"
-        ) from exc
+    raise ImportError(
+        "Pillow is required for MUSIQ scoring. Install with: pip install Pillow"
+    ) from exc
 
 try:
     import tensorflow as tf

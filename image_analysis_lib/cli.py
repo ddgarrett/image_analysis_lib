@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 from typing import List, Optional
 
@@ -193,7 +194,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             "duplicate_to_keeper": dup_to_keeper,
         }
         report_path.write_text(
-            __import__("json").dumps(report, indent=2, ensure_ascii=False),
+            json.dumps(report, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
         print(f"Wrote report to {report_path}")
