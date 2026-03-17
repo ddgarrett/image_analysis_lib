@@ -26,7 +26,6 @@ var/
 *.egg
 
 # IDE / editor
-.vscode/
 .idea/
 *.swp
 *.swo
