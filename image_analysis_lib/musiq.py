@@ -26,9 +26,29 @@ except ImportError as exc:  # pragma: no cover - import error path
     ) from exc
 
 
-JPEG_EXTENSIONS = {".jpg", ".jpeg", ".JPG", ".JPEG"}
+IMAGE_EXTENSIONS = {
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".gif",
+    ".tiff",
+    ".tif",
+}
 
 _MUSIQ_TF = None
+
+
+def _is_ignored_path(path: Path, root: Path) -> bool:
+    """
+    Return True if any component of the path (file or directory)
+    starts with '.' or '_', relative to the given root.
+    """
+    try:
+        parts = path.relative_to(root).parts
+    except ValueError:
+        # If the path is not under root, fall back to absolute parts
+        parts = path.parts
+    return any(part.startswith(".") or part.startswith("_") for part in parts)
 
 
 def _load_musiq_tf(config: ImageAnalysisConfig = default_config):
@@ -96,10 +116,12 @@ def score_image(
 
 
 def find_jpeg_files(root: Path) -> List[Path]:
-    """Return all JPEG file paths under root (main and subdirectories)."""
+    """Return all supported image file paths under root (main and subdirectories)."""
     out: List[Path] = []
     for p in root.rglob("*"):
-        if p.is_file() and p.suffix in JPEG_EXTENSIONS:
+        if _is_ignored_path(p, root):
+            continue
+        if p.is_file() and p.suffix.lower() in IMAGE_EXTENSIONS:
             out.append(p)
     return sorted(out)
 

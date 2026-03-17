@@ -13,7 +13,10 @@ def _parse_common_dir_arg(parser: argparse.ArgumentParser, name: str) -> None:
     parser.add_argument(
         name,
         type=Path,
-        help="Root directory to scan for JPEGs (main and subdirectories).",
+        help=(
+            "Root directory to scan for images (JPEG, PNG, GIF, TIFF; "
+            "main and subdirectories, skipping paths starting with '.' or '_')."
+        ),
     )
 
 
