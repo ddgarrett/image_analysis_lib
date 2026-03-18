@@ -23,6 +23,28 @@ pip install -e ./image_analysis_lib
 
 This installs the package in editable mode and exposes the `image-analysis` CLI.
 
+## Testing
+
+From the project root, with a virtual environment that has the project dependencies and `pytest` installed (e.g. `pip install pytest` and the project’s runtime deps):
+
+```bash
+PYTHONPATH=. python -m pytest tests/ -v
+```
+
+To print MUSIQ scores for the sample images in `tests/images/` (requires TensorFlow and TensorFlow Hub):
+
+```bash
+PYTHONPATH=. python tests/score_test_images.py
+```
+
+If you see `ModuleNotFoundError: No module named 'pkg_resources'` when importing TensorFlow or `image_analysis_lib.musiq`, your environment's `setuptools` may be too new for some dependencies. In that case, in the same virtualenv run:
+
+```bash
+pip install "setuptools==68.2.2"
+```
+
+and retry the command.
+
 ## CLI usage
 
 ### MUSIQ scoring

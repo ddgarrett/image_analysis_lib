@@ -2,6 +2,10 @@
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["image_analysis_lib*"]
+
 [project]
 name = "image_analysis_lib"
 version = "0.1.0"
@@ -23,6 +27,9 @@ dependencies = [
 [project.optional-dependencies]
 cli = [
   "click>=8.0.0",
+]
+dev = [
+  "pytest>=7.0.0",
 ]
 
 [project.scripts]

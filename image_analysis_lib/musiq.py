@@ -22,7 +22,8 @@ try:
 except ImportError as exc:  # pragma: no cover - import error path
     raise ImportError(
         "TensorFlow and TensorFlow Hub are required for MUSIQ. "
-        "Install with: pip install tensorflow tensorflow_hub"
+        "Install with: pip install tensorflow tensorflow_hub. "
+        f"Original error: {exc!s}"
     ) from exc
 
 
