@@ -63,7 +63,7 @@ image-analysis score /path/to/images \
   - `image_evaluation_musiq_results_full.csv`
 
 These CSVs are compatible with the existing `scene_duplicates_by_score.py` script and with the
-`musiq_rating` column in `process_images`.
+`musiq_score` column in `process_images`.
 
 ### Scene duplicate detection
 
@@ -108,7 +108,7 @@ You can still run those scripts directly as before; they will use the shared imp
 
 `process_images` reads:
 
-- The MUSIQ scores from the CSVs produced by the scoring step (via the `musiq_rating` column).
+- The MUSIQ scores from the CSVs produced by the scoring step (via the `musiq_score` column).
 - The review status (`img_status`) and level (`rvw_lvl`) you set interactively.
 
 Typical workflow:
@@ -119,7 +119,7 @@ Typical workflow:
    - Either via `scene_duplicates_by_score.py`.
    - Or via the CLI: `image-analysis dedupe /path/to/day_directory ...`.
 3. Open the same directory as a collection in `process_images`; it will see:
-   - `musiq_rating` values (from the MUSIQ CSV).
+   - `musiq_score values (from the MUSIQ CSV).
    - Any pre-labeled statuses from `image_scores_and_status.csv` (e.g. `dup`, `poor quality`).
 4. Use the GUI filters and menus in `process_images` to refine statuses and levels.
 
