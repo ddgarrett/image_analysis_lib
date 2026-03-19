@@ -158,10 +158,35 @@ class TestImageToJpegBytes:
         """With tests/images: max_size reduces payload size."""
         if not test_image_paths:
             pytest.skip("no test images in tests/images/")
-        full = image_to_jpeg_bytes(test_image_paths[0], max_size=None)
-        small = image_to_jpeg_bytes(test_image_paths[0], max_size=64)
-        assert len(small) <= len(full)
+        p = test_image_paths[0]
+        full = image_to_jpeg_bytes(p, max_size=None)
+        small = image_to_jpeg_bytes(p, max_size=64)
+
+        # Only assert size reduction when we expect Pillow to actually resize.
+        with Image.open(p) as img:
+            max_side = max(img.size)
+        if max_side > 64:
+            assert len(small) <= len(full)
         assert small[:2] == b"\xff\xd8"
+
+    def test_full_jpeg_returns_original_bytes(self, tmp_path):
+        img = Image.new("RGB", (32, 16), color=(123, 45, 67))
+        jpg_path = tmp_path / "x.jpg"
+        img.save(jpg_path, format="JPEG", quality=85)
+
+        original = jpg_path.read_bytes()
+        out = image_to_jpeg_bytes(jpg_path, max_size=None)
+        assert out == original
+
+    def test_full_png_is_converted_to_jpeg(self, tmp_path):
+        img = Image.new("RGB", (32, 16), color=(10, 200, 30))
+        png_path = tmp_path / "x.png"
+        img.save(png_path, format="PNG")
+
+        out = image_to_jpeg_bytes(png_path, max_size=None)
+        assert isinstance(out, bytes)
+        assert len(out) > 0
+        assert out[:2] == b"\xff\xd8"  # JPEG SOI
 
 
 class TestCollectFileInfo:

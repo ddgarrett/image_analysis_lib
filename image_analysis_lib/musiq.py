@@ -80,6 +80,13 @@ def image_to_jpeg_bytes(
     quality: int = 85,
 ) -> bytes:
     """Load image, optionally resize, and return as JPEG bytes suitable for MUSIQ."""
+    # If the caller asked for full resolution (max_size=None) and the input is
+    # already JPEG, avoid decoding + re-encoding. This prevents any image
+    # transform introduced by Pillow's save pipeline and keeps the exact
+    # original JPEG bytes (still compatible with MUSIQ, which consumes JPEG bytes).
+    if max_size is None and path.suffix.lower() in {".jpg", ".jpeg"}:
+        return path.read_bytes()
+
     img = Image.open(path).convert("RGB")
     if max_size is not None and max_size > 0:
         img = _resize_image(img, max_size)
