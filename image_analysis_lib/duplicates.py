@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Tuple
 
 import numpy as np
+
 import exifread
 from imagededup.methods import CNN
 
@@ -222,7 +223,7 @@ def load_scores_from_musiq_csv(
     size: int,
     prefix: str,
 ) -> dict[str, float]:
-    """Load (relative_path -> musiq_score) from image_evaluator_musiq output: {prefix}_{size}.csv."""
+    """Load (relative image path -> musiq_score) from MUSIQ CSV: {prefix}_{size}.csv."""
     import csv
 
     size_label = "full" if size == 0 else str(size)
@@ -233,7 +234,7 @@ def load_scores_from_musiq_csv(
     with open(csv_path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            rel = row.get("relative_path", "").strip()
+            rel = _get_relative_image_path_from_row(row)
             if not rel:
                 continue
             raw = row.get("musiq_score")
@@ -423,6 +424,30 @@ _EXIF_EXTRAS_KEYS = [
     "exif_iso_speed_ratings",
 ]
 
+def _get_relative_image_path_from_row(row: dict[str, str]) -> str:
+    """
+    Return a relative image path (relative to the MUSIQ/dup "image_root") from a CSV row.
+
+    MUSIQ rows are produced with:
+    - file_location: sys.subdir from process_images/exif_loader.py ('' or '/YYYY-MM-DD' etc.)
+    - file_name: basename
+
+    This function returns the internal relative path used by this library for file access:
+    - '' + '/' => 'file.jpg' (top-level)
+    - '/subdir' + '/' + 'file.jpg' => 'subdir/file.jpg' (leading slash removed for Path joining)
+    """
+    loc = (row.get("file_location") or "").strip()
+    name = (row.get("file_name") or "").strip()
+    if not name:
+        return ""
+    if not loc:
+        return name
+
+    # process_images uses a leading '/' for nested folders (sys.subdir),
+    # but we must remove it for correct path joining with `image_root / rel`.
+    loc = loc.lstrip("/").rstrip("/")
+    return f"{loc}/{name}" if loc else name
+
 
 def _parse_score(raw: str) -> float | None:
     """Parse musiq_score from CSV; return None if missing/invalid."""
@@ -474,7 +499,11 @@ def write_status_csv(
     def _norm_rel(r: str) -> str:
         return Path(r).as_posix() if r else ""
 
-    paths = [r.get("relative_path", "").strip() for r in rows if r.get("relative_path", "").strip()]
+    paths = [
+        _get_relative_image_path_from_row(r)
+        for r in rows
+        if _get_relative_image_path_from_row(r)
+    ]
     gps_cache = build_gps_cache(image_root, paths)
     extras_cache: dict[str, dict[str, str]] = {}
     for rel in paths:
@@ -499,7 +528,7 @@ def write_status_csv(
         writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         for row in rows:
-            rel = row.get("relative_path", "").strip()
+            rel = _get_relative_image_path_from_row(row)
             rel_key = _norm_rel(rel)
             score = _parse_score(row.get("musiq_score"))
             status, dup_photo = _status_for_row(
@@ -555,7 +584,7 @@ def copy_images_by_status(
     base.mkdir(parents=True, exist_ok=True)
 
     for row in rows:
-        rel = row.get("relative_path", "").strip()
+        rel = _get_relative_image_path_from_row(row)
         if not rel:
             continue
         src = image_root / rel

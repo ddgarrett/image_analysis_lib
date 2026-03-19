@@ -3,9 +3,7 @@ from __future__ import annotations
 import io
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
-
-import numpy as np
+from typing import Dict, Iterable, List, Optional
 
 from .config import ImageAnalysisConfig, default_config
 
@@ -141,7 +139,6 @@ def relative_path(path: Path, root: Path) -> str:
 
 def collect_file_info(image_path: Path, root: Path) -> Dict[str, object]:
     """Basic file and image metadata as a serialisable dict."""
-    from . import musiq as _self  # avoid circular import in some tools
 
     stat = image_path.stat()
     try:
@@ -252,7 +249,8 @@ def write_scores_csv_for_sizes(
             writer = csv.writer(f)
             writer.writerow(
                 [
-                    "relative_path",
+                    "file_location",
+                    "file_name",
                     "file_size_bytes",
                     "file_size_mb",
                     "width",
@@ -265,9 +263,18 @@ def write_scores_csv_for_sizes(
                 ]
             )
             for rel, row in sorted(results.items()):
+                rel_path = Path(rel)
+                file_name = rel_path.name
+                # Match process_images/exif_loader.py:
+                # - file_location is the directory portion (sys.subdir)
+                # - nested directories keep a leading slash (e.g. "/2024-02-22")
+                # - root-level images use an empty file_location ("")
+                parent = rel_path.parent.as_posix()
+                file_location = f"/{parent}" if parent != "." else ""
                 writer.writerow(
                     [
-                        rel,
+                        file_location,
+                        file_name,
                         row["file_size_bytes"],
                         f"{row['file_size_mb']:.4f}",
                         row["width"] if row["width"] is not None else "",
@@ -283,4 +290,3 @@ def write_scores_csv_for_sizes(
         csv_paths.append(csv_path)
 
     return csv_paths
-

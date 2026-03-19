@@ -221,10 +221,10 @@ class TestLoadScoresFromMusiqCsv:
     def test_loads_scores(self, tmp_path):
         csv_path = tmp_path / "results_1024.csv"
         csv_path.write_text(
-            "relative_path,musiq_score,other\n"
-            "a.jpg,5.5,x\n"
-            "b.jpg,7.2,y\n"
-            "c.jpg,,\n",
+            "file_location,file_name,musiq_score,other\n"
+            ",a.jpg,5.5,x\n"
+            ",b.jpg,7.2,y\n"
+            ",c.jpg,,\n",
             encoding="utf-8",
         )
         out = load_scores_from_musiq_csv(tmp_path, size=1024, prefix="results")
@@ -234,9 +234,22 @@ class TestLoadScoresFromMusiqCsv:
 
     def test_size_zero_uses_full_label(self, tmp_path):
         csv_path = tmp_path / "results_full.csv"
-        csv_path.write_text("relative_path,musiq_score\np.jpg,6.0\n", encoding="utf-8")
+        csv_path.write_text(
+            "file_location,file_name,musiq_score\n,p.jpg,6.0\n",
+            encoding="utf-8",
+        )
         out = load_scores_from_musiq_csv(tmp_path, size=0, prefix="results")
         assert out["p.jpg"] == 6.0
+
+    def test_nested_location_leading_slash_removed(self, tmp_path):
+        csv_path = tmp_path / "results_1024.csv"
+        csv_path.write_text(
+            "file_location,file_name,musiq_score\n"
+            "/2024-02-22,img.jpg,7.0\n",
+            encoding="utf-8",
+        )
+        out = load_scores_from_musiq_csv(tmp_path, size=1024, prefix="results")
+        assert out["2024-02-22/img.jpg"] == 7.0
 
 
 class TestLoadFullMusiqCsv:
@@ -249,17 +262,18 @@ class TestLoadFullMusiqCsv:
     def test_loads_all_columns(self, tmp_path):
         csv_path = tmp_path / "results_1024.csv"
         csv_path.write_text(
-            "relative_path,musiq_score,file_size_bytes\n"
-            "a.jpg,5.5,1000\n"
-            "b.jpg,7.2,2000\n",
+            "file_location,file_name,musiq_score,file_size_bytes\n"
+            ",a.jpg,5.5,1000\n"
+            ",b.jpg,7.2,2000\n",
             encoding="utf-8",
         )
         rows = load_full_musiq_csv(tmp_path, size=1024, prefix="results")
         assert len(rows) == 2
-        assert rows[0]["relative_path"] == "a.jpg"
+        assert rows[0]["file_location"] == ""
+        assert rows[0]["file_name"] == "a.jpg"
         assert rows[0]["musiq_score"] == "5.5"
         assert rows[0]["file_size_bytes"] == "1000"
-        assert rows[1]["relative_path"] == "b.jpg"
+        assert rows[1]["file_location"] == ""
 
 
 class TestGetScoredPathsInOrder:
@@ -278,10 +292,10 @@ class TestGetScoredPathsInOrder:
     def test_ordered_by_score_descending(self, tmp_path):
         csv_path = tmp_path / "image_evaluation_musiq_results_1024.csv"
         csv_path.write_text(
-            "relative_path,musiq_score\n"
-            "low.jpg,3.0\n"
-            "high.jpg,8.0\n"
-            "mid.jpg,5.0\n",
+            "file_location,file_name,musiq_score\n"
+            ",low.jpg,3.0\n"
+            ",high.jpg,8.0\n"
+            ",mid.jpg,5.0\n",
             encoding="utf-8",
         )
         ordered = get_scored_paths_in_order(
