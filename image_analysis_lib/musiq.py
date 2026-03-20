@@ -137,6 +137,18 @@ def relative_path(path: Path, root: Path) -> str:
     return path.relative_to(root).as_posix()
 
 
+def _musiq_score_for_csv(score: Optional[float]) -> str:
+    """Format score for MUSIQ CSV: three decimal places; values >= 10 become 9.999."""
+    if score is None:
+        return ""
+    x = float(score)
+    if x >= 10.0:
+        x = 9.999
+    elif x < 0.0:
+        x = 0.0
+    return f"{x:.3f}"
+
+
 def collect_file_info(image_path: Path, root: Path) -> Dict[str, object]:
     """Basic file and image metadata as a serialisable dict."""
 
@@ -282,7 +294,7 @@ def write_scores_csv_for_sizes(
                         row["evaluated_at"],
                         f"{row['evaluation_time_seconds']:.4f}",
                         row["max_size"],
-                        row["musiq_score"] if row["musiq_score"] is not None else "",
+                        _musiq_score_for_csv(row["musiq_score"]),
                         row["musiq_error"] or "",
                     ]
                 )

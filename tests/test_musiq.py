@@ -19,7 +19,26 @@ from image_analysis_lib.musiq import (
     relative_path,
 )
 from image_analysis_lib.musiq import _is_ignored_path as is_ignored_path
+from image_analysis_lib.musiq import _musiq_score_for_csv as musiq_score_for_csv
 from image_analysis_lib.musiq import _resize_image as resize_image
+
+
+class TestMusiqScoreForCsv:
+    def test_none_is_empty(self):
+        assert musiq_score_for_csv(None) == ""
+
+    def test_three_decimal_places(self):
+        assert musiq_score_for_csv(0.0) == "0.000"
+        assert musiq_score_for_csv(7.2) == "7.200"
+        assert musiq_score_for_csv(5.123456) == "5.123"
+
+    def test_ten_or_above_becomes_9_999(self):
+        assert musiq_score_for_csv(10.0) == "9.999"
+        assert musiq_score_for_csv(10.5) == "9.999"
+        assert musiq_score_for_csv(11) == "9.999"
+
+    def test_negative_clamped_to_zero(self):
+        assert musiq_score_for_csv(-0.1) == "0.000"
 
 
 class TestImageExtensions:
