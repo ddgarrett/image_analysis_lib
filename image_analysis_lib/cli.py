@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
 from typing import List, Optional
 
@@ -94,13 +93,6 @@ def main(argv: Optional[List[str]] = None) -> int:
         help="Score below this is 'poor quality' and excluded from duplicate check.",
     )
     dedupe_parser.add_argument(
-        "--output",
-        "-o",
-        type=Path,
-        default=None,
-        help="Path for JSON duplicate report. Default: same directory as photos (scene_duplicates_report.json).",
-    )
-    dedupe_parser.add_argument(
         "--no-copy-by-status",
         action="store_true",
         help="Do not copy images into _by_status/<status>/ subfolders.",
@@ -181,41 +173,20 @@ def main(argv: Optional[List[str]] = None) -> int:
         else:
             print("No scene duplicates found at this threshold.")
 
-        report_path = (
-            args.output
-            if args.output is not None
-            else image_root / "scene_duplicates_report.json"
+        musiq_rows = duplicates.load_full_musiq_csv(
+            image_root,
+            size=args.musiq_csv_size,
+            prefix=default_config.musiq_csv_prefix,
         )
-        report = {
-            "day_directory": str(image_root),
-            "musiq_csv_size": args.musiq_csv_size,
-            "threshold": args.threshold,
-            "gps_radius_meters": args.gps_radius_meters
-            if args.gps_radius_meters != 0
-            else None,
-            "keeper_to_duplicates": keeper_to_dups,
-            "duplicate_to_keeper": dup_to_keeper,
-        }
-        report_path.write_text(
-            json.dumps(report, indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
-        print(f"Wrote report to {report_path}")
-
-        if not args.no_copy_by_status:
-            musiq_rows = duplicates.load_full_musiq_csv(
+        if musiq_rows:
+            status_csv_path = duplicates.write_status_csv(
                 image_root,
-                size=args.musiq_csv_size,
-                prefix=default_config.musiq_csv_prefix,
+                musiq_rows,
+                dup_to_keeper,
+                poor_quality_threshold=args.poor_quality_threshold,
             )
-            if musiq_rows:
-                status_csv_path = duplicates.write_status_csv(
-                    image_root,
-                    musiq_rows,
-                    dup_to_keeper,
-                    poor_quality_threshold=args.poor_quality_threshold,
-                )
-                print(f"Wrote {status_csv_path.name} (all fields) to {image_root}")
+            print(f"Wrote {status_csv_path.name} (all fields) to {image_root}")
+            if not args.no_copy_by_status:
                 duplicates.copy_images_by_status(
                     image_root,
                     musiq_rows,

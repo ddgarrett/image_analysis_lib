@@ -81,7 +81,6 @@ This:
 - Reads the appropriate MUSIQ CSV (e.g. `image_evaluation_musiq_results_1024.csv`).
 - Uses CNN encodings plus optional GPS radius to detect “same scene, lower score” duplicates.
 - Writes:
-  - `scene_duplicates_report.json` with keeper/duplicate mappings.
   - `image_scores_and_status.csv` with status (`best`, `good`, `dup`, `poor quality`, `TBD`) and EXIF extras.
   - Copies images into `_by_status/` subfolders (unless `--no-copy-by-status` is passed).
 
