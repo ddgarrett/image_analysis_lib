@@ -16,6 +16,8 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+  # tensorflow_hub imports pkg_resources; setuptools 82+ no longer provides it
+  "setuptools>=65.0.0,<82",
   "Pillow>=9.0.0",
   "numpy>=1.23.0",
   "tensorflow>=2.11.0",
