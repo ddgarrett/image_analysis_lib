@@ -33,7 +33,7 @@ def main():
         print(f"No images in {images_dir}")
         raise SystemExit(1)
 
-    print("MUSIQ scores (1–10, higher = better quality):")
+    print("MUSIQ scores (1-10, higher = better quality):")
     print("")
     for p in paths:
         t0 = time.perf_counter()

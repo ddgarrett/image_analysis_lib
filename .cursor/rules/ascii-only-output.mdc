@@ -1,0 +1,15 @@
+---
+description: Enforce ASCII-only generated text unless explicitly needed
+alwaysApply: true
+---
+
+# ASCII-only output
+
+- Use ASCII characters only in generated code, comments, strings, and documentation.
+- Do not introduce Unicode punctuation or symbols (for example: en/em dashes, smart quotes, ellipsis, non-breaking spaces, bullets, emoji).
+- Prefer plain ASCII replacements:
+  - `-` instead of `–` or `—`
+  - `'` and `"` instead of smart quotes
+  - `...` instead of `…`
+- If editing files that already contain Unicode, avoid adding new Unicode unless explicitly requested or required by an external spec/fixture.
+- Before finalizing edits, replace accidental non-ASCII characters in changed text.
