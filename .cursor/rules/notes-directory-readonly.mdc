@@ -1,0 +1,11 @@
+---
+description: Do not edit the notes directory; it is historical and owner-maintained only
+alwaysApply: true
+---
+
+# notes/ directory is read-only for the agent
+
+- Never create, edit, delete, or move files under `notes/`.
+- Do not suggest changes to `notes/` as part of refactors, cleanups, or doc sync.
+- Treat `notes/` as a historical archive that the project owner updates manually only.
+- If something in `notes/` is outdated, mention it in chat if helpful, but do not change the files unless the user explicitly asks to edit a specific file there.

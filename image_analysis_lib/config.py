@@ -16,14 +16,14 @@ class ImageAnalysisConfig:
 
     # MUSIQ
     musiq_model_url: str = "https://tfhub.dev/google/musiq/ava/1"
-    musiq_default_max_sizes: List[int] = field(default_factory=lambda: [1024])
+    musiq_default_max_sizes: List[int] = field(default_factory=lambda: [0])
 
     # Duplicate detection
     musiq_csv_prefix: str = "image_evaluation_musiq_results"
-    musiq_csv_default_size: int = 1024
+    musiq_csv_default_size: int = 0
     poor_quality_threshold: float = 4.0
     min_similarity_threshold: float = 0.65
-    gps_radius_meters: Optional[float] = 200.0
+    gps_radius_meters: Optional[float] = 0.0
 
     # Performance / environment
     batch_size: int = 1  # simple default; callers can tune

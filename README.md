@@ -52,45 +52,51 @@ and retry the command.
 To score all JPEGs under a directory and write MUSIQ CSV files:
 
 ```bash
-image-analysis score /path/to/images \
-  --max-size 1024 0 \
-  --output-prefix image_evaluation_musiq_results
+image-analysis score /path/to/images
 ```
 
-- `--max-size 1024 0` evaluates at 1024px long side and at full resolution.
-- One CSV per size is written in the image directory, e.g.:
-  - `image_evaluation_musiq_results_1024.csv`
-  - `image_evaluation_musiq_results_full.csv`
+By default, `--max-size` is `0` (full resolution, no resize). One CSV is written in the image directory, e.g. `image_evaluation_musiq_results_full.csv`.
+
+To score at additional sizes (longest side in pixels), pass one or more values:
+
+```bash
+image-analysis score /path/to/images --max-size 1024 0
+```
+
+That writes both `image_evaluation_musiq_results_1024.csv` and `image_evaluation_musiq_results_full.csv` when `1024` and `0` are both listed.
 
 These CSVs are compatible with the existing `scene_duplicates_by_score.py` script and with the
 `musiq_score` column in `process_images`.
 
 ### Scene duplicate detection
 
-After scoring images with MUSIQ, you can find scene duplicates for a single “day directory”:
+After scoring images with MUSIQ, you can find scene duplicates for a single day directory:
 
 ```bash
-image-analysis dedupe /path/to/day_directory \
-  --musiq-csv-size 1024 \
-  --threshold 0.65 \
-  --gps-radius-meters 200
+image-analysis dedupe /path/to/day_directory
 ```
+
+Defaults:
+
+- Reads the full-resolution MUSIQ CSV: `image_evaluation_musiq_results_full.csv` (`--musiq-csv-size` default `0`).
+- GPS filtering is off (`--gps-radius-meters` default `0`). Pass e.g. `--gps-radius-meters 200` to only compare pairs that are within that distance when both have EXIF GPS.
+- Images are **not** copied into `_by_status/` unless you pass `--copy-by-status`.
 
 This:
 
-- Reads the appropriate MUSIQ CSV (e.g. `image_evaluation_musiq_results_1024.csv`).
-- Uses CNN encodings plus optional GPS radius to detect “same scene, lower score” duplicates.
-- Writes:
-  - `image_scores_and_status.csv` with status (`best`, `good`, `dup`, `poor quality`, `TBD`) and EXIF extras.
-  - Copies images into `_by_status/` subfolders (unless `--no-copy-by-status` is passed).
+- Uses CNN encodings (and optional GPS radius) to detect "same scene, lower score" duplicates.
+- Writes `image_scores_and_status.csv` with status (`best`, `good`, `dup`, `poor quality`, `TBD`) and EXIF extras when MUSIQ data is present.
+
+If you scored at 1024px instead, point dedupe at that CSV:
+
+```bash
+image-analysis dedupe /path/to/day_directory --musiq-csv-size 1024
+```
 
 You can also print only duplicates for removal scripts:
 
 ```bash
-image-analysis dedupe /path/to/day_directory \
-  --musiq-csv-size 1024 \
-  --threshold 0.65 \
-  --list-remove
+image-analysis dedupe /path/to/day_directory --list-remove
 ```
 
 ## Using from `backup_pics`
@@ -139,12 +145,12 @@ The most important knobs are:
 - **Duplicate similarity threshold** (`min_similarity_threshold`, default 0.65):
   - Lower to find more possible duplicates (more sensitive, more false positives).
   - Raise to only flag very similar images (fewer, higher-confidence duplicates).
-- **GPS radius** (`gps_radius_meters`, default 200m):
-  - Increase if your photos from the same scene are usually farther apart.
-  - Set to `0` to disable GPS filtering entirely.
+- **GPS radius** (`gps_radius_meters`, default `0` / disabled in CLI and shared config):
+  - Pass a positive value (e.g. `200`) so pairs are only compared when both have GPS and are within that many meters.
+  - Leave at `0` to ignore GPS when matching scenes.
 
 For Raspberry Pi 5, you may also want to:
 
-- Use smaller `--max-size` values (e.g. `512`) when scoring, to speed up MUSIQ.
+- Use smaller `--max-size` values (e.g. `512` or `1024`) when scoring instead of the default full resolution, to speed up MUSIQ.
 - Run scoring in batches of smaller directories (one day at a time).
 

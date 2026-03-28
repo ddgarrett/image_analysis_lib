@@ -93,9 +93,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         help="Score below this is 'poor quality' and excluded from duplicate check.",
     )
     dedupe_parser.add_argument(
-        "--no-copy-by-status",
+        "--copy-by-status",
         action="store_true",
-        help="Do not copy images into _by_status/<status>/ subfolders.",
+        help="Copy images into _by_status/<status>/ subfolders (off by default).",
     )
     dedupe_parser.add_argument(
         "--list-remove",
@@ -186,7 +186,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 poor_quality_threshold=args.poor_quality_threshold,
             )
             print(f"Wrote {status_csv_path.name} (all fields) to {image_root}")
-            if not args.no_copy_by_status:
+            if args.copy_by_status:
                 duplicates.copy_images_by_status(
                     image_root,
                     musiq_rows,

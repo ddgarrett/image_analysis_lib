@@ -1,0 +1,4 @@
+# example command 
+
+image-analysis score /Volumes/T7/pictures/TO_BE_REVIEWED/2025-04_cal_coast
+image-analysis dedupe /Volumes/T7/pictures/TO_BE_REVIEWED/2025-04_cal_coast
