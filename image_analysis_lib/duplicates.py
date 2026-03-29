@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import shutil
+from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Iterable, List, Tuple
@@ -323,6 +324,9 @@ def find_duplicates_by_score(
     """
     For each image in score-desc order, mark lower-scoring images as duplicates if same scene.
 
+    Comparisons run only within the same directory (same parent as the relative path under
+    image_root), matching MUSIQ CSV file_location folder boundaries.
+
     Returns:
       keeper_to_duplicates: keeper relative_path -> list of duplicate relative_paths
       duplicate_to_keeper: duplicate relative_path -> keeper relative_path
@@ -360,47 +364,53 @@ def find_duplicates_by_score(
     keeper_to_duplicates: dict[str, list[str]] = {}
     duplicate_to_keeper: dict[str, str] = {}
 
-    for keeper_path in paths:
-        if keeper_path not in encodings:
-            continue
-        if keeper_path in duplicate_to_keeper:
-            continue
-        keeper_idx = path_to_idx[keeper_path]
-        keeper_score = ordered[keeper_idx][1]
-        keeper_enc = encodings[keeper_path]
-        keeper_gps = gps_cache.get(keeper_path) if use_gps else None
+    folder_to_paths: dict[str, list[str]] = defaultdict(list)
+    for p in paths:
+        folder_key = Path(p).parent.as_posix()
+        folder_to_paths[folder_key].append(p)
 
-        for other_path in paths:
-            if other_path == keeper_path or other_path not in encodings:
+    for bucket_paths in folder_to_paths.values():
+        for keeper_path in bucket_paths:
+            if keeper_path not in encodings:
                 continue
-            if path_to_idx[other_path] <= keeper_idx:
+            if keeper_path in duplicate_to_keeper:
                 continue
-            if other_path in duplicate_to_keeper:
-                continue
+            keeper_idx = path_to_idx[keeper_path]
+            keeper_score = ordered[keeper_idx][1]
+            keeper_enc = encodings[keeper_path]
+            keeper_gps = gps_cache.get(keeper_path) if use_gps else None
 
-            if use_gps and keeper_gps is not None:
-                other_gps = gps_cache.get(other_path)
-                if other_gps is not None:
-                    dist = distance_meters_flat(
-                        keeper_gps[0],
-                        keeper_gps[1],
-                        other_gps[0],
-                        other_gps[1],
-                    )
-                    if dist > gps_radius_meters:
-                        continue
+            for other_path in bucket_paths:
+                if other_path == keeper_path or other_path not in encodings:
+                    continue
+                if path_to_idx[other_path] <= keeper_idx:
+                    continue
+                if other_path in duplicate_to_keeper:
+                    continue
 
-            sim = cosine_similarity(keeper_enc, encodings[other_path])
-            if sim >= min_similarity_threshold:
-                duplicate_to_keeper[other_path] = keeper_path
-                keeper_to_duplicates.setdefault(keeper_path, []).append(other_path)
+                if use_gps and keeper_gps is not None:
+                    other_gps = gps_cache.get(other_path)
+                    if other_gps is not None:
+                        dist = distance_meters_flat(
+                            keeper_gps[0],
+                            keeper_gps[1],
+                            other_gps[0],
+                            other_gps[1],
+                        )
+                        if dist > gps_radius_meters:
+                            continue
 
-        if verbose:
-            n_dups = len(keeper_to_duplicates.get(keeper_path, []))
-            print(
-                f"  Processing highest-scoring image (score {keeper_score:.4f}): "
-                f"{keeper_path} - {n_dups} duplicate(s) found"
-            )
+                sim = cosine_similarity(keeper_enc, encodings[other_path])
+                if sim >= min_similarity_threshold:
+                    duplicate_to_keeper[other_path] = keeper_path
+                    keeper_to_duplicates.setdefault(keeper_path, []).append(other_path)
+
+            if verbose:
+                n_dups = len(keeper_to_duplicates.get(keeper_path, []))
+                print(
+                    f"  Processing highest-scoring image (score {keeper_score:.4f}): "
+                    f"{keeper_path} - {n_dups} duplicate(s) found"
+                )
 
     if verbose:
         n_dups = len(duplicate_to_keeper)
