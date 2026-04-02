@@ -20,8 +20,8 @@ The T7/pictures folder contains four directories for backing up, reviewing and b
 
 * **Generate scores and detect duplicates one trip at a time:**
   * Run the `image_analysis_lib` on a trip folder.
-  * `> image-analysis score /Volumes/T7/pictures/TO_BE_REVIEWED/{project}`
-  * `> image-analysis dedupe /Volumes/T7/pictures/TO_BE_REVIEWED/{project}`
+  * `image-analysis score /Volumes/T7/pictures/TO_BE_REVIEWED/{project}`
+  * `image-analysis dedupe /Volumes/T7/pictures/TO_BE_REVIEWED/{project}`
 * When **File... New** is run, the score and dedupe results will be merged with image info.
 * Complete reviewing pictures.
 * After completing review, move trip folder to **2. TO_BE_BLOGGED**.
