@@ -24,6 +24,8 @@ class ImageAnalysisConfig:
     poor_quality_threshold: float = 4.0
     min_similarity_threshold: float = 0.65
     gps_radius_meters: Optional[float] = 0.0
+    best_score_threshold: float = 6.0
+    tbd_best_score_threshold: float = 5.0
 
     # Performance / environment
     batch_size: int = 1  # simple default; callers can tune

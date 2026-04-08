@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 from typing import List, Optional
 
@@ -93,6 +94,20 @@ def main(argv: Optional[List[str]] = None) -> int:
         help="Score below this is 'poor quality' and excluded from duplicate check.",
     )
     dedupe_parser.add_argument(
+        "--best-score-threshold",
+        type=float,
+        default=default_config.best_score_threshold,
+        metavar="B",
+        help="MUSIQ score above this maps to CSV status 'best' (default from config).",
+    )
+    dedupe_parser.add_argument(
+        "--tbd-best-score-threshold",
+        type=float,
+        default=default_config.tbd_best_score_threshold,
+        metavar="G",
+        help="MUSIQ score above this maps to CSV status 'good' (default from config).",
+    )
+    dedupe_parser.add_argument(
         "--copy-by-status",
         action="store_true",
         help="Copy images into _by_status/<status>/ subfolders (off by default).",
@@ -131,7 +146,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             raise SystemExit(f"Not a directory: {image_root}")
 
         gps_radius = None if args.gps_radius_meters == 0 else args.gps_radius_meters
-        keeper_to_dups, dup_to_keeper = duplicates.find_duplicates_by_score(
+        keeper_to_dups, dup_to_keeper, dup_to_cosine = duplicates.find_duplicates_by_score(
             image_root,
             config=default_config,
             min_similarity_threshold=args.threshold,
@@ -179,11 +194,28 @@ def main(argv: Optional[List[str]] = None) -> int:
             prefix=default_config.musiq_csv_prefix,
         )
         if musiq_rows:
+            parms_out = {
+                "poor_quality_threshold": args.poor_quality_threshold,
+                "min_similarity_threshold": args.threshold,
+                "gps_radius_meters": float(args.gps_radius_meters),
+                "best_score_threshold": args.best_score_threshold,
+                "tbd_best_score_threshold": args.tbd_best_score_threshold,
+                "musiq_csv_size": args.musiq_csv_size,
+                "musiq_csv_prefix": default_config.musiq_csv_prefix,
+            }
+            parms_path = image_root / "dedup_parms.json"
+            with open(parms_path, "w", encoding="utf-8") as pf:
+                json.dump(parms_out, pf, indent=2)
+            print(f"Wrote {parms_path.name} to {image_root}")
+
             status_csv_path = duplicates.write_status_csv(
                 image_root,
                 musiq_rows,
                 dup_to_keeper,
+                dup_to_cosine,
                 poor_quality_threshold=args.poor_quality_threshold,
+                best_score_threshold=args.best_score_threshold,
+                tbd_best_score_threshold=args.tbd_best_score_threshold,
             )
             print(f"Wrote {status_csv_path.name} (all fields) to {image_root}")
             if args.copy_by_status:
@@ -192,6 +224,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                     musiq_rows,
                     dup_to_keeper,
                     poor_quality_threshold=args.poor_quality_threshold,
+                    best_score_threshold=args.best_score_threshold,
+                    tbd_best_score_threshold=args.tbd_best_score_threshold,
                 )
                 print(f"Copied images to {image_root / duplicates.BY_STATUS_DIR}")
 

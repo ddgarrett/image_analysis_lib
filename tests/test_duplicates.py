@@ -25,8 +25,8 @@ from image_analysis_lib.duplicates import (
     load_full_musiq_csv,
     load_scores_from_musiq_csv,
 )
-from image_analysis_lib.duplicates import _parse_score as parse_score
-from image_analysis_lib.duplicates import _status_for_row as status_for_row
+from image_analysis_lib.scoring import csv_status_for_row as status_for_row
+from image_analysis_lib.scoring import parse_musiq_score as parse_score
 
 
 class TestDistanceMetersFlat:
@@ -95,32 +95,65 @@ class TestParseScore:
 
 
 class TestStatusForRow:
-    """Tests for _status_for_row."""
+    """Tests for csv_status_for_row (score bands)."""
 
     def test_poor_quality_below_threshold(self):
-        status, dup = status_for_row("a.jpg", 3.0, {}, poor_quality_threshold=4.0)
+        status, dup = status_for_row(
+            "a.jpg",
+            3.0,
+            {},
+            poor_quality_threshold=4.0,
+            best_score_threshold=6.0,
+            tbd_best_score_threshold=5.0,
+        )
         assert status == "poor quality"
         assert dup == ""
 
     def test_duplicate(self):
         status, dup = status_for_row(
-            "dup.jpg", 6.0, {"dup.jpg": "keeper.jpg"}, poor_quality_threshold=4.0
+            "dup.jpg",
+            6.0,
+            {"dup.jpg": "keeper.jpg"},
+            poor_quality_threshold=4.0,
+            best_score_threshold=6.0,
+            tbd_best_score_threshold=5.0,
         )
         assert status == "dup"
         assert dup == "keeper.jpg"
 
     def test_best_above_6(self):
-        status, dup = status_for_row("a.jpg", 6.5, {}, poor_quality_threshold=4.0)
+        status, dup = status_for_row(
+            "a.jpg",
+            6.5,
+            {},
+            poor_quality_threshold=4.0,
+            best_score_threshold=6.0,
+            tbd_best_score_threshold=5.0,
+        )
         assert status == "best"
         assert dup == ""
 
     def test_good_between_5_and_6(self):
-        status, dup = status_for_row("a.jpg", 5.5, {}, poor_quality_threshold=4.0)
+        status, dup = status_for_row(
+            "a.jpg",
+            5.5,
+            {},
+            poor_quality_threshold=4.0,
+            best_score_threshold=6.0,
+            tbd_best_score_threshold=5.0,
+        )
         assert status == "good"
         assert dup == ""
 
     def test_tbd(self):
-        status, dup = status_for_row("a.jpg", 4.5, {}, poor_quality_threshold=4.0)
+        status, dup = status_for_row(
+            "a.jpg",
+            4.5,
+            {},
+            poor_quality_threshold=4.0,
+            best_score_threshold=6.0,
+            tbd_best_score_threshold=5.0,
+        )
         assert status == "TBD"
         assert dup == ""
 

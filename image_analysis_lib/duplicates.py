@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import json
 import math
 import shutil
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+from typing import List
 
 import numpy as np
 
@@ -14,6 +13,12 @@ import exifread
 from imagededup.methods import CNN
 
 from .config import ImageAnalysisConfig, default_config
+from .scoring import (
+    COSINE_SIM_SENTINEL,
+    cosine_sim_to_csv_value,
+    csv_status_for_row,
+    parse_musiq_score,
+)
 
 
 _METERS_PER_DEG_LAT = 111_320
@@ -320,7 +325,7 @@ def find_duplicates_by_score(
     musiq_csv_size: int | None = None,
     poor_quality_threshold: float | None = None,
     verbose: bool = False,
-) -> tuple[dict[str, list[str]], dict[str, str]]:
+) -> tuple[dict[str, list[str]], dict[str, str], dict[str, float]]:
     """
     For each image in score-desc order, mark lower-scoring images as duplicates if same scene.
 
@@ -330,6 +335,7 @@ def find_duplicates_by_score(
     Returns:
       keeper_to_duplicates: keeper relative_path -> list of duplicate relative_paths
       duplicate_to_keeper: duplicate relative_path -> keeper relative_path
+      duplicate_to_cosine_sim: duplicate relative_path -> cosine similarity to assigned keeper
     """
 
     if min_similarity_threshold is None:
@@ -348,7 +354,7 @@ def find_duplicates_by_score(
     )
     ordered = [(p, s) for p, s in ordered_all if s >= poor_quality_threshold]
     if not ordered:
-        return {}, {}
+        return {}, {}, {}
 
     paths = [p for p, _ in ordered]
     use_gps = gps_radius_meters is not None and gps_radius_meters > 0
@@ -358,11 +364,12 @@ def find_duplicates_by_score(
 
     encodings = build_encoding_map_for_paths(image_root, paths)
     if len(encodings) < 2:
-        return {}, {}
+        return {}, {}, {}
 
     path_to_idx = {p: i for i, (p, _) in enumerate(ordered)}
     keeper_to_duplicates: dict[str, list[str]] = {}
     duplicate_to_keeper: dict[str, str] = {}
+    duplicate_to_cosine_sim: dict[str, float] = {}
 
     folder_to_paths: dict[str, list[str]] = defaultdict(list)
     for p in paths:
@@ -403,6 +410,7 @@ def find_duplicates_by_score(
                 sim = cosine_similarity(keeper_enc, encodings[other_path])
                 if sim >= min_similarity_threshold:
                     duplicate_to_keeper[other_path] = keeper_path
+                    duplicate_to_cosine_sim[other_path] = sim
                     keeper_to_duplicates.setdefault(keeper_path, []).append(other_path)
 
             if verbose:
@@ -418,7 +426,7 @@ def find_duplicates_by_score(
         print(f"  Duplicates found: {n_dups}")
         print(f"  Non-duplicate images remaining: {n_remain}")
 
-    return keeper_to_duplicates, duplicate_to_keeper
+    return keeper_to_duplicates, duplicate_to_keeper, duplicate_to_cosine_sim
 
 
 STATUS_CSV_BASENAME = "image_scores_and_status.csv"
@@ -459,47 +467,20 @@ def _get_relative_image_path_from_row(row: dict[str, str]) -> str:
     return f"{loc}/{name}" if loc else name
 
 
-def _parse_score(raw: str) -> float | None:
-    """Parse musiq_score from CSV; return None if missing/invalid."""
-    if raw is None or str(raw).strip() == "":
-        return None
-    try:
-        return float(raw)
-    except (TypeError, ValueError):
-        return None
-
-
-def _status_for_row(
-    relative_path: str,
-    score: float | None,
-    duplicate_to_keeper: dict[str, str],
-    *,
-    poor_quality_threshold: float,
-) -> tuple[str, str]:
-    """Return (status, dup_photo). dup_photo only set when status is 'dup'."""
-    if score is not None and score < poor_quality_threshold:
-        return "poor quality", ""
-    if relative_path in duplicate_to_keeper:
-        return "dup", duplicate_to_keeper[relative_path]
-    if score is not None:
-        if score > 6:
-            return "best", ""
-        if score > 5:
-            return "good", ""
-    return "TBD", ""
-
-
 def write_status_csv(
     image_root: Path,
     rows: list[dict[str, str]],
     duplicate_to_keeper: dict[str, str],
+    duplicate_to_cosine_sim: dict[str, float],
     *,
     poor_quality_threshold: float,
+    best_score_threshold: float,
+    tbd_best_score_threshold: float,
 ) -> Path:
     """
     Write CSV with same fields as input MUSIQ CSV plus: gps_latitude, gps_longitude,
     date_time_taken, EXIF extras (make, model, dimensions, orientation, exposure),
-    status, dup_photo.
+    status, dup_photo, cosine_sim (-1 for non-duplicates).
     """
     import csv
 
@@ -531,6 +512,7 @@ def write_status_csv(
         *_EXIF_EXTRAS_KEYS,
         "status",
         "dup_photo",
+        "cosine_sim",
     ]
     fieldnames = input_keys + extra_keys
 
@@ -540,13 +522,19 @@ def write_status_csv(
         for row in rows:
             rel = _get_relative_image_path_from_row(row)
             rel_key = _norm_rel(rel)
-            score = _parse_score(row.get("musiq_score"))
-            status, dup_photo = _status_for_row(
+            score = parse_musiq_score(row.get("musiq_score"))
+            status, dup_photo = csv_status_for_row(
                 rel,
                 score,
                 duplicate_to_keeper,
                 poor_quality_threshold=poor_quality_threshold,
+                best_score_threshold=best_score_threshold,
+                tbd_best_score_threshold=tbd_best_score_threshold,
             )
+            if rel in duplicate_to_cosine_sim:
+                cosine_cell = cosine_sim_to_csv_value(duplicate_to_cosine_sim[rel])
+            else:
+                cosine_cell = cosine_sim_to_csv_value(float(COSINE_SIM_SENTINEL))
             gps = gps_cache.get(rel) if rel else None
             gps_lat = f"{gps[0]:.6f}" if gps else ""
             gps_lon = f"{gps[1]:.6f}" if gps else ""
@@ -561,6 +549,7 @@ def write_status_csv(
                 out_row[k] = extras.get(k, "")
             out_row["status"] = status
             out_row["dup_photo"] = dup_photo
+            out_row["cosine_sim"] = cosine_cell
             writer.writerow(out_row)
     return out_path
 
@@ -582,6 +571,8 @@ def copy_images_by_status(
     duplicate_to_keeper: dict[str, str],
     *,
     poor_quality_threshold: float,
+    best_score_threshold: float,
+    tbd_best_score_threshold: float,
 ) -> None:
     """
     Copy each image into image_root/_by_status/<status_folder>/ using its original filename.
@@ -600,12 +591,14 @@ def copy_images_by_status(
         src = image_root / rel
         if not src.is_file():
             continue
-        score = _parse_score(row.get("musiq_score"))
-        status, dup_photo = _status_for_row(
+        score = parse_musiq_score(row.get("musiq_score"))
+        status, dup_photo = csv_status_for_row(
             rel,
             score,
             duplicate_to_keeper,
             poor_quality_threshold=poor_quality_threshold,
+            best_score_threshold=best_score_threshold,
+            tbd_best_score_threshold=tbd_best_score_threshold,
         )
         folder_name = _STATUS_FOLDER_NAMES.get(status)
         if folder_name is None and status == "dup" and dup_photo:

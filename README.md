@@ -85,7 +85,9 @@ Defaults:
 This:
 
 - Uses CNN encodings (and optional GPS radius) to detect "same scene, lower score" duplicates.
-- Writes `image_scores_and_status.csv` with status (`best`, `good`, `dup`, `poor quality`, `TBD`) and EXIF extras when MUSIQ data is present.
+- Writes `image_scores_and_status.csv` with status (`best`, `good`, `dup`, `poor quality`, `TBD`),
+  `cosine_sim` (similarity for `dup` rows, else `-1`), and EXIF extras when MUSIQ data is present.
+- Writes `dedup_parms.json` in the same directory with thresholds used for that run.
 
 If you scored at 1024px instead, point dedupe at that CSV:
 
