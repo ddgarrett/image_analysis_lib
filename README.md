@@ -4,7 +4,7 @@ Shared Python library for image analysis tasks used by `backup_pics` and `proces
 
 It currently provides:
 
-- MUSIQ image-quality scoring (via TensorFlow Hub).
+- MUSIQ image-quality scoring (default: local AVA SavedModel under `vendor/musiq_ava/`; optional TensorFlow Hub URL in config).
 - Scene duplicate detection using CNN encodings and EXIF GPS.
 - A small CLI for running both workflows from the command line.
 
@@ -48,6 +48,8 @@ and retry the command.
 ## CLI usage
 
 ### MUSIQ scoring
+
+The first time you score with the default config, if `vendor/musiq_ava/` is missing or incomplete, the library downloads the AVA SavedModel from TensorFlow Hub (needs network once, roughly 200 MB). That directory is gitignored.
 
 To score all JPEGs under a directory and write MUSIQ CSV files:
 
@@ -126,7 +128,7 @@ Typical workflow:
    - Either via `scene_duplicates_by_score.py`.
    - Or via the CLI: `image-analysis dedupe /path/to/day_directory ...`.
 3. Open the same directory as a collection in `process_images`; it will see:
-   - `musiq_score values (from the MUSIQ CSV).
+   - `musiq_score` values (from the MUSIQ CSV).
    - Any pre-labeled statuses from `image_scores_and_status.csv` (e.g. `dup`, `poor quality`).
 4. Use the GUI filters and menus in `process_images` to refine statuses and levels.
 

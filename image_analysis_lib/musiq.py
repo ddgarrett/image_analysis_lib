@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import io
+import os
+import shutil
+import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
@@ -25,6 +29,14 @@ except ImportError as exc:  # pragma: no cover - import error path
     ) from exc
 
 
+class MusiqModelLoadError(RuntimeError):
+    """Raised when the MUSIQ SavedModel cannot be loaded (missing, corrupt, or Hub error)."""
+
+
+# TensorFlow Hub handle for google/musiq/ava (used to populate vendor/musiq_ava).
+TFHUB_MUSIQ_AVA_URL: str = "https://tfhub.dev/google/musiq/ava/1"
+
+
 IMAGE_EXTENSIONS = {
     ".jpg",
     ".jpeg",
@@ -35,6 +47,80 @@ IMAGE_EXTENSIONS = {
 }
 
 _MUSIQ_TF = None
+
+
+def _repo_root() -> Path:
+    """Repository root (sibling of image_analysis_lib package directory)."""
+    return Path(__file__).resolve().parent.parent
+
+
+def _is_remote_hub_handle(handle: str) -> bool:
+    h = handle.strip()
+    return h.startswith("http://") or h.startswith("https://")
+
+
+def _local_saved_model_dir_ok(path: Path) -> bool:
+    if not path.is_dir():
+        return False
+    return (path / "saved_model.pb").is_file() or (path / "saved_model.pbtxt").is_file()
+
+
+def _local_musiq_vendor_needs_download(path: Path) -> bool:
+    """True if path is missing, not a directory, or not a usable SavedModel tree."""
+    if not path.exists():
+        return True
+    if not path.is_dir():
+        return True
+    return not _local_saved_model_dir_ok(path)
+
+
+def _musiq_fetch_failed_message(detail: str) -> str:
+    return (
+        "Could not download the MUSIQ AVA model. This host needs internet access once to fetch it.\n"
+        f"Detail: {detail}\n"
+        "Alternatively, copy a working vendor/musiq_ava directory from another machine."
+    )
+
+
+def _musiq_local_load_failed_message(path: Path, detail: str) -> str:
+    return (
+        f"MUSIQ SavedModel failed to load from {path}.\n"
+        f"Detail: {detail}\n"
+        "If the files are corrupt, delete that directory and run again (with network once so the "
+        "model can be re-downloaded)."
+    )
+
+
+def download_musiq_ava_vendor(dest: Path | None = None) -> Path:
+    """
+    Download google/musiq/ava from TensorFlow Hub into dest (default: repo vendor/musiq_ava).
+
+    Replaces dest if it already exists. Requires network access to tfhub.dev.
+    Returns dest.
+    """
+    target = dest if dest is not None else _repo_root() / "vendor" / "musiq_ava"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.exists():
+        if target.is_dir():
+            shutil.rmtree(target)
+        else:
+            target.unlink()
+
+    old_cache = os.environ.get("TFHUB_CACHE_DIR")
+    try:
+        with tempfile.TemporaryDirectory() as staging:
+            os.environ["TFHUB_CACHE_DIR"] = staging
+            resolved = hub.resolve(TFHUB_MUSIQ_AVA_URL)
+            src = Path(resolved)
+            if not src.is_dir():
+                raise OSError(f"Expected a directory from hub.resolve, got: {src}")
+            shutil.copytree(src, target)
+    finally:
+        if old_cache is None:
+            os.environ.pop("TFHUB_CACHE_DIR", None)
+        else:
+            os.environ["TFHUB_CACHE_DIR"] = old_cache
+    return target
 
 
 def _is_ignored_path(path: Path, root: Path) -> bool:
@@ -51,11 +137,53 @@ def _is_ignored_path(path: Path, root: Path) -> bool:
 
 
 def _load_musiq_tf(config: ImageAnalysisConfig = default_config):
-    """Lazy-load MUSIQ via TensorFlow Hub."""
+    """Lazy-load MUSIQ: hub.load accepts a local SavedModel path or a tfhub.dev URL."""
     global _MUSIQ_TF
     if _MUSIQ_TF is not None:
         return _MUSIQ_TF
-    model = hub.load(config.musiq_model_url)
+    handle = config.musiq_model_url
+    if not _is_remote_hub_handle(handle):
+        local = Path(handle)
+        if local.exists() and not local.is_dir():
+            print(
+                "image_analysis_lib: configured MUSIQ path is not a directory; remove it or fix the path.",
+                file=sys.stderr,
+            )
+            raise MusiqModelLoadError(
+                f"MUSIQ path {local} exists but is not a directory. Remove it or point musiq_model_url elsewhere."
+            )
+        if _local_musiq_vendor_needs_download(local):
+            print(
+                "image_analysis_lib: downloading MUSIQ AVA model (TensorFlow Hub, ~200 MB, needs network)...",
+                file=sys.stderr,
+            )
+            try:
+                download_musiq_ava_vendor(local)
+            except Exception as exc:  # noqa: BLE001
+                raise MusiqModelLoadError(_musiq_fetch_failed_message(str(exc))) from exc
+            if _local_musiq_vendor_needs_download(local):
+                raise MusiqModelLoadError(
+                    "MUSIQ AVA model directory is still missing or incomplete after download."
+                )
+    try:
+        model = hub.load(handle)
+    except Exception as exc:  # noqa: BLE001
+        if _is_remote_hub_handle(handle):
+            raise MusiqModelLoadError(
+                "TensorFlow Hub failed to load the remote MUSIQ model.\n"
+                f"URL: {handle!r}\n"
+                f"Detail: {exc}\n"
+                "Check network, VPN, firewall, TF Hub cache, and disk space."
+            ) from exc
+        local_path = Path(handle)
+        print(
+            "image_analysis_lib: MUSIQ SavedModel failed to load from disk. "
+            "If the copy is corrupt, delete that directory and run again (with network once).",
+            file=sys.stderr,
+        )
+        raise MusiqModelLoadError(
+            _musiq_local_load_failed_message(local_path, str(exc))
+        ) from exc
     _MUSIQ_TF = model.signatures["serving_default"]
     return _MUSIQ_TF
 

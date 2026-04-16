@@ -23,6 +23,45 @@ from image_analysis_lib.musiq import _musiq_score_for_csv as musiq_score_for_csv
 from image_analysis_lib.musiq import _resize_image as resize_image
 
 
+class TestMusiqLoadHelpers:
+    """Helpers for local vs Hub handle (no TensorFlow execution)."""
+
+    def test_is_remote_hub_handle(self):
+        from image_analysis_lib.musiq import _is_remote_hub_handle as is_remote
+
+        assert is_remote("https://tfhub.dev/google/musiq/ava/1") is True
+        assert is_remote("http://example.com/m") is True
+        assert is_remote("  https://x/y") is True
+        assert is_remote("/tmp/musiq") is False
+        assert is_remote("vendor/musiq_ava") is False
+
+    def test_local_saved_model_dir_ok(self, tmp_path):
+        from image_analysis_lib.musiq import _local_saved_model_dir_ok as saved_ok
+
+        assert saved_ok(tmp_path) is False
+        (tmp_path / "saved_model.pb").write_bytes(b"x")
+        assert saved_ok(tmp_path) is True
+
+    def test_local_musiq_vendor_needs_download(self, tmp_path):
+        from image_analysis_lib.musiq import _local_musiq_vendor_needs_download as needs_dl
+
+        missing = tmp_path / "musiq_ava"
+        assert needs_dl(missing) is True
+
+        d = tmp_path / "empty_dir"
+        d.mkdir()
+        assert needs_dl(d) is True
+
+        ok_dir = tmp_path / "ok"
+        ok_dir.mkdir()
+        (ok_dir / "saved_model.pb").write_bytes(b"x")
+        assert needs_dl(ok_dir) is False
+
+        f = tmp_path / "file_not_dir"
+        f.write_text("x", encoding="ascii")
+        assert needs_dl(f) is True
+
+
 class TestMusiqScoreForCsv:
     def test_none_is_empty(self):
         assert musiq_score_for_csv(None) == ""

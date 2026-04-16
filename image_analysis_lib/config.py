@@ -5,6 +5,16 @@ from pathlib import Path
 from typing import List, Optional
 
 
+def _repo_root() -> Path:
+    """Repository root (package lives under image_analysis_lib/)."""
+    return Path(__file__).resolve().parent.parent
+
+
+def _default_musiq_model_handle() -> str:
+    """Path string for hub.load: local AVA SavedModel under vendor/musiq_ava/."""
+    return str(_repo_root() / "vendor" / "musiq_ava")
+
+
 @dataclass
 class ImageAnalysisConfig:
     """
@@ -14,8 +24,11 @@ class ImageAnalysisConfig:
     scripts (e.g. on Raspberry Pi 5) and GUI apps (e.g. on macOS).
     """
 
-    # MUSIQ
-    musiq_model_url: str = "https://tfhub.dev/google/musiq/ava/1"
+    # MUSIQ: default loads AVA from vendor/musiq_ava (gitignored). First scoring run downloads
+    # from TensorFlow Hub when that directory is missing (needs network once).
+    # To load from Hub URL directly instead, set musiq_model_url to the URL below.
+    # musiq_model_url: str = "https://tfhub.dev/google/musiq/ava/1"
+    musiq_model_url: str = field(default_factory=_default_musiq_model_handle)
     musiq_default_max_sizes: List[int] = field(default_factory=lambda: [0])
 
     # Duplicate detection

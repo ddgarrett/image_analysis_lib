@@ -34,3 +34,6 @@ var/
 .DS_Store
 Thumbs.db
 
+# Vendored MUSIQ AVA SavedModel (auto-downloaded on first score when using default config)
+vendor/musiq_ava/
+

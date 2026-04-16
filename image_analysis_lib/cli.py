@@ -131,13 +131,16 @@ def main(argv: Optional[List[str]] = None) -> int:
         if not root.is_dir():
             raise SystemExit(f"Not a directory: {root}")
         images = musiq.find_jpeg_files(root)
-        musiq.write_scores_csv_for_sizes(
-            root,
-            images,
-            max_sizes=[int(v) for v in args.max_size],
-            output_prefix=args.output_prefix,
-            config=default_config,
-        )
+        try:
+            musiq.write_scores_csv_for_sizes(
+                root,
+                images,
+                max_sizes=[int(v) for v in args.max_size],
+                output_prefix=args.output_prefix,
+                config=default_config,
+            )
+        except musiq.MusiqModelLoadError as exc:
+            raise SystemExit(str(exc)) from None
         return 0
 
     if args.command == "dedupe":
